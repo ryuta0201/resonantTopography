@@ -3,7 +3,7 @@
 This project visualizes a personal exploration algorithm inspired by
 Bayesian optimization, spiral search, and cenote-like convergence.
 
-![Demo](assets/demo.mp4)
+https://raw.githubusercontent.com/ryuta0201/resonantTopography/main/assets/demo.mp4
 
 ## Core Concepts
 - Fog: diffuse sampling / uncertainty
