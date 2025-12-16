@@ -14,24 +14,24 @@ const CONFIG = {
   // Physics: FOG
   fog: {
     maxSpeed: 0.5,
-    noiseScale: 0.005,
-    noiseStrength: 0.5
+    noiseScale: 0.02,
+    noiseStrength: 1
   },
 
   // Physics: NET (Constellation)
   net: {
     connectionDist: 100,   // 線をつなぐ距離
     attractForce: 0.008,   // 引き合う力 (構造化)
-    repelForce: 0.15,      // 反発する力 (島化・潰れ防止)
+    repelForce: 0.25,      // 反発する力 (島化・潰れ防止)
     repelRadius: 40,       // 反発が発生する距離
-    drag: 0.90             // 減衰 (構造を安定させる)
+    drag: 0.40             // 減衰 (構造を安定させる)
   },
 
   // Physics: FLUID (Cenote)
   fluid: {
-    maxSpeed: 4.0,
-    centerGravity: 0.02,   // 中心への引力
-    vortexStrength: 0.08,  // 回転力
+    maxSpeed: 1.25,
+    centerGravity: 0.015,   // 中心への引力
+    vortexStrength: 0.025,  // 回転力
     flowNoise: 0.2,        // 流体の乱れ
     drag: 0.96             // 滑らかな動き
   },
@@ -40,8 +40,19 @@ const CONFIG = {
   colors: {
     base: [100, 200, 255], // R, G, B
   },
+
+  // Visual sizes (tweakable, will be scaled for mobile)
+  visuals: {
+    nodeBaseSize: 8,
+    nodeFluidMaxSize: 24
+  },
+
   transitionSpeed: 0.02    // 状態遷移の滑らかさ
 };
+
+const IS_MOBILE =
+  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+  window.innerWidth < 768;
 
 // --- GLOBAL VARIABLES ---
 let nodes = [];
@@ -50,12 +61,46 @@ let sceneManager;
 let glowTexture;
 let fluidProfile = {
   gravitySign: 1,      // +1: 吸引, -1: 斥力
-  gravityScale: 10.0,   // 強さの倍率
+  gravityScale: 5.0,   // 強さの倍率
 };
 
+// Initial velocity scale (can be boosted on mobile)
+let INITIAL_VEL_SCALE = 1.0;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
+
+  // Mobile adjustments: fewer nodes, bigger visuals, stronger forces/speeds
+  if (IS_MOBILE) {
+    console.log("⚠️ Mobile detected — applying mobile config");
+    // Reduce node count for performance on mobile
+    CONFIG.nodeCount = 50;
+    CONFIG.gridCellSize = 200; // Smaller grid cells for mobile
+
+    // Increase visible particle sizes for touch targets
+    CONFIG.visuals.nodeBaseSize *= 3;
+    CONFIG.visuals.nodeFluidMaxSize *= 1.8;
+
+    // Boost physics/velocity (1.5〜2倍の範囲; using 1.8 as a balanced default)
+    const mobileScale = 1.8;
+    CONFIG.fog.maxSpeed *= mobileScale;
+    CONFIG.fog.noiseStrength *= mobileScale;
+
+    CONFIG.net.attractForce *= mobileScale;
+    CONFIG.net.repelForce *= mobileScale * 10;
+    CONFIG.net.repelRadius *= mobileScale;
+    CONFIG.net.connectionDist *= mobileScale * 2.5;
+
+    CONFIG.fluid.maxSpeed *= mobileScale;
+    CONFIG.fluid.centerGravity *= mobileScale;
+    CONFIG.fluid.vortexStrength *= mobileScale;
+    CONFIG.fluid.flowNoise *= mobileScale;
+
+    // Make initial velocities a bit stronger on mobile
+    INITIAL_VEL_SCALE = mobileScale;
+  } else {
+    INITIAL_VEL_SCALE = 1.0;
+  }
   
   // 1. Initialize Managers
   sceneManager = new SceneManager();
@@ -108,6 +153,11 @@ function mousePressed() {
   sceneManager.cyclePhase();
 }
 
+function touchStarted() {
+  sceneManager.cyclePhase();
+  return false; // スクロール防止
+}
+
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   grid = new UniformGrid(width, height, CONFIG.gridCellSize);
@@ -122,6 +172,7 @@ class SceneManager {
     this.currentT = 0;    // Continuous time 0.0 -> 2.0
     this.weights = { fog: 1, net: 0, fluid: 0 };
     this.dir = 1;         // Direction of transition
+    this.prevPhase = 0; 
   }
 
   cyclePhase() {
@@ -132,16 +183,19 @@ class SceneManager {
     this.targetPhase += this.dir;
     this.targetPhase = constrain(this.targetPhase, 0, 2);
     
-    this.onPhaseChanged(this.targetPhase);
+    this.onPhaseChanged(this.prevPhase, this.targetPhase);
   }
 
-  onPhaseChanged(phase) {
-        // Fluid に入る or 出る瞬間だけ重力を変える
-    if (phase === 2 || phase === 1) {
+  onPhaseChanged(prev, next) {
+    // ★ Fluid に入る(1→2) or 出る(2→1) “瞬間” だけ
+    const enteringFluid = (prev === 1 && next === 2);
+    const leavingFluid  = (prev === 2 && next === 1);
+
+    if (enteringFluid || leavingFluid) {
       randomizeFluidProfile();
     }
   }
-  
+
   update() {
     // Smooth transition
     this.currentT = lerp(this.currentT, this.targetPhase, CONFIG.transitionSpeed);
@@ -227,7 +281,7 @@ class UniformGrid {
 class Node {
   constructor(x, y, id) {
     this.pos = createVector(x, y);
-    this.vel = p5.Vector.random2D().mult(0.5);
+    this.vel = p5.Vector.random2D().mult(0.5 * INITIAL_VEL_SCALE);
     this.acc = createVector(0, 0);
     this.mass = random(0.8, 1.2);
     this.id = id;
@@ -247,6 +301,17 @@ class Node {
       this.acc.add(fogForce);
     }
 
+    if (w.fog > 0.3) {
+      let toCenter = p5.Vector.sub(this.pos, createVector(width/2, height/2));
+      let distNorm = toCenter.mag() / max(width, height);
+
+      // 中心から外へ、じわっと押し出す
+      let expandForce = toCenter.normalize().mult(
+        CONFIG.fog.noiseStrength * w.fog * distNorm * 0.75
+      );
+      this.acc.add(expandForce);
+    }
+
     // 2. NET Forces (Local Interaction via Grid)
     if (w.net > 0.01 || w.fluid > 0.01) { // Fluidでも近傍反発は少し残すと綺麗
       // Gridを使って近傍のみ取得 (O(N) order)
@@ -264,8 +329,10 @@ class Node {
           // A. Attraction (引力) - Netのみ
           // Fluid時は引力を切る（溶ける表現）
           if (w.net > 0.01) {
-            let attractStr = map(d, 0, CONFIG.net.connectionDist, 1, 0);
-            this.acc.add(dir.copy().mult(attractStr * CONFIG.net.attractForce * w.net));
+            // let attractStr = map(d, 0, CONFIG.net.connectionDist, 1, 0);
+            // this.acc.add(dir.copy().mult(attractStr * CONFIG.net.attractForce * w.net));
+            let attractFalloff = map(d, 0, CONFIG.net.connectionDist, 1.0, 0.2);
+            this.acc.add(dir.copy().mult(attractFalloff * CONFIG.net.attractForce * w.net));
           }
 
           // B. Separation (反発) - Net & Fluid (島化・潰れ防止)
@@ -383,11 +450,12 @@ function renderScene(nodes, grid, w) {
     // Net: sharp, bright
     // Fluid: large, soft (Metaball effect via additive blend)
     
-    let size = 8;
+    // Use configurable sizes (can be increased for mobile in setup)
+    let size = CONFIG.visuals.nodeBaseSize;
     let alpha = 150;
     
     if (w.fluid > 0.01) {
-      size = lerp(8, 24, w.fluid); // Fluidで巨大化
+      size = lerp(CONFIG.visuals.nodeBaseSize, CONFIG.visuals.nodeFluidMaxSize, w.fluid); // Fluidで巨大化
       alpha = lerp(150, 80, w.fluid); // 透明度を下げて重ねる
     }
     
