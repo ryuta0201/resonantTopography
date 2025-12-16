@@ -5,6 +5,7 @@ Bayesian optimization, spiral search, and cenote-like convergence.
 
 https://github.com/user-attachments/assets/e398e90d-dac7-46da-afb2-95bb6680f825
 
+https://ryuta0201.github.io/resonantTopography/
 ## Core Concepts
 - Fog: diffuse sampling / uncertainty
 - Net: structured relational stability
