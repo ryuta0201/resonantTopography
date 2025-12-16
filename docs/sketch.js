@@ -14,24 +14,24 @@ const CONFIG = {
   // Physics: FOG
   fog: {
     maxSpeed: 0.5,
-    noiseScale: 0.005,
-    noiseStrength: 0.5
+    noiseScale: 0.02,
+    noiseStrength: 1
   },
 
   // Physics: NET (Constellation)
   net: {
     connectionDist: 100,   // 線をつなぐ距離
     attractForce: 0.008,   // 引き合う力 (構造化)
-    repelForce: 0.80,      // 反発する力 (島化・潰れ防止)
+    repelForce: 0.25,      // 反発する力 (島化・潰れ防止)
     repelRadius: 40,       // 反発が発生する距離
-    drag: 0.80             // 減衰 (構造を安定させる)
+    drag: 0.40             // 減衰 (構造を安定させる)
   },
 
   // Physics: FLUID (Cenote)
   fluid: {
-    maxSpeed: 4.0,
-    centerGravity: 0.02,   // 中心への引力
-    vortexStrength: 0.08,  // 回転力
+    maxSpeed: 1.25,
+    centerGravity: 0.015,   // 中心への引力
+    vortexStrength: 0.025,  // 回転力
     flowNoise: 0.2,        // 流体の乱れ
     drag: 0.96             // 滑らかな動き
   },
@@ -61,7 +61,7 @@ let sceneManager;
 let glowTexture;
 let fluidProfile = {
   gravitySign: 1,      // +1: 吸引, -1: 斥力
-  gravityScale: 10.0,   // 強さの倍率
+  gravityScale: 5.0,   // 強さの倍率
 };
 
 // Initial velocity scale (can be boosted on mobile)
@@ -301,6 +301,17 @@ class Node {
       this.acc.add(fogForce);
     }
 
+    if (w.fog > 0.3) {
+      let toCenter = p5.Vector.sub(this.pos, createVector(width/2, height/2));
+      let distNorm = toCenter.mag() / max(width, height);
+
+      // 中心から外へ、じわっと押し出す
+      let expandForce = toCenter.normalize().mult(
+        CONFIG.fog.noiseStrength * w.fog * distNorm * 0.75
+      );
+      this.acc.add(expandForce);
+    }
+
     // 2. NET Forces (Local Interaction via Grid)
     if (w.net > 0.01 || w.fluid > 0.01) { // Fluidでも近傍反発は少し残すと綺麗
       // Gridを使って近傍のみ取得 (O(N) order)
@@ -318,8 +329,10 @@ class Node {
           // A. Attraction (引力) - Netのみ
           // Fluid時は引力を切る（溶ける表現）
           if (w.net > 0.01) {
-            let attractStr = map(d, 0, CONFIG.net.connectionDist, 1, 0);
-            this.acc.add(dir.copy().mult(attractStr * CONFIG.net.attractForce * w.net));
+            // let attractStr = map(d, 0, CONFIG.net.connectionDist, 1, 0);
+            // this.acc.add(dir.copy().mult(attractStr * CONFIG.net.attractForce * w.net));
+            let attractFalloff = map(d, 0, CONFIG.net.connectionDist, 1.0, 0.2);
+            this.acc.add(dir.copy().mult(attractFalloff * CONFIG.net.attractForce * w.net));
           }
 
           // B. Separation (反発) - Net & Fluid (島化・潰れ防止)
