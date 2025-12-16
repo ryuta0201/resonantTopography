@@ -155,7 +155,21 @@ It is a visualization of **how understanding moves**.
 
 
 ## Status
-Prototype (p5.js)
+Prototype (p5.js)## Tagged Versions
+
+This project evolves through **conceptual milestones**,
+each captured as a tagged release.
+
+### v0.3 — Resonant Balance
+
+* Continuous blending of Fog / Net / Fluid phases
+* Structural stability without rigid fixation
+* Fluid (Cenote) phase as controlled dissolution
+* Mobile-aware tuning and performance refinement
+
+🔖 Tag: `v0.3-resonant-balance`
+
+Earlier versions represent exploratory prototypes without stable conceptual closure.
 
 ## Next
 - Phase-weight blending refinement
