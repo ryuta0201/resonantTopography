@@ -43,6 +43,14 @@ const CONFIG = {
   transitionSpeed: 0.02    // 状態遷移の滑らかさ
 };
 
+// Visual sizes (tweakable, will be scaled for mobile)
+CONFIG.visuals.nodeBaseSize = 8;        // 通常のノードサイズ
+CONFIG.visuals.nodeFluidMaxSize = 24;  // Fluid時の最大サイズ
+
+const IS_MOBILE =
+  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+  window.innerWidth < 768;
+
 // --- GLOBAL VARIABLES ---
 let nodes = [];
 let grid;
@@ -53,9 +61,41 @@ let fluidProfile = {
   gravityScale: 10.0,   // 強さの倍率
 };
 
+// Initial velocity scale (can be boosted on mobile)
+let INITIAL_VEL_SCALE = 1.0;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
+
+  // Mobile adjustments: fewer nodes, bigger visuals, stronger forces/speeds
+  if (IS_MOBILE) {
+    console.log("⚠️ Mobile detected — applying mobile config");
+    // Reduce node count for performance on mobile
+    CONFIG.nodeCount = 50;
+
+    // Increase visible particle sizes for touch targets
+    CONFIG.visuals.nodeBaseSize *= 1.8;
+    CONFIG.visuals.nodeFluidMaxSize *= 1.8;
+
+    // Boost physics/velocity (1.5〜2倍の範囲; using 1.8 as a balanced default)
+    const scale = 1.8;
+    CONFIG.fog.maxSpeed *= scale;
+    CONFIG.fog.noiseStrength *= scale;
+
+    CONFIG.net.attractForce *= scale;
+    CONFIG.net.repelForce *= scale;
+    CONFIG.net.repelRadius *= scale;
+
+    CONFIG.fluid.maxSpeed *= scale;
+    CONFIG.fluid.centerGravity *= scale;
+    CONFIG.fluid.vortexStrength *= scale;
+    CONFIG.fluid.flowNoise *= scale;
+
+    // Make initial velocities a bit stronger on mobile
+    INITIAL_VEL_SCALE = scale;
+  } else {
+    INITIAL_VEL_SCALE = 1.0;
+  }
   
   // 1. Initialize Managers
   sceneManager = new SceneManager();
@@ -108,6 +148,11 @@ function mousePressed() {
   sceneManager.cyclePhase();
 }
 
+function touchStarted() {
+  sceneManager.cyclePhase();
+  return false; // スクロール防止
+}
+
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   grid = new UniformGrid(width, height, CONFIG.gridCellSize);
@@ -122,6 +167,7 @@ class SceneManager {
     this.currentT = 0;    // Continuous time 0.0 -> 2.0
     this.weights = { fog: 1, net: 0, fluid: 0 };
     this.dir = 1;         // Direction of transition
+    this.prevPhase = 0; 
   }
 
   cyclePhase() {
@@ -132,16 +178,19 @@ class SceneManager {
     this.targetPhase += this.dir;
     this.targetPhase = constrain(this.targetPhase, 0, 2);
     
-    this.onPhaseChanged(this.targetPhase);
+    this.onPhaseChanged(this.prevPhase, this.targetPhase);
   }
 
-  onPhaseChanged(phase) {
-        // Fluid に入る or 出る瞬間だけ重力を変える
-    if (phase === 2 || phase === 1) {
+  onPhaseChanged(prev, next) {
+    // ★ Fluid に入る(1→2) or 出る(2→1) “瞬間” だけ
+    const enteringFluid = (prev === 1 && next === 2);
+    const leavingFluid  = (prev === 2 && next === 1);
+
+    if (enteringFluid || leavingFluid) {
       randomizeFluidProfile();
     }
   }
-  
+
   update() {
     // Smooth transition
     this.currentT = lerp(this.currentT, this.targetPhase, CONFIG.transitionSpeed);
@@ -227,7 +276,7 @@ class UniformGrid {
 class Node {
   constructor(x, y, id) {
     this.pos = createVector(x, y);
-    this.vel = p5.Vector.random2D().mult(0.5);
+    this.vel = p5.Vector.random2D().mult(0.5 * INITIAL_VEL_SCALE);
     this.acc = createVector(0, 0);
     this.mass = random(0.8, 1.2);
     this.id = id;
@@ -383,11 +432,12 @@ function renderScene(nodes, grid, w) {
     // Net: sharp, bright
     // Fluid: large, soft (Metaball effect via additive blend)
     
-    let size = 8;
+    // Use configurable sizes (can be increased for mobile in setup)
+    let size = CONFIG.visuals.nodeBaseSize;
     let alpha = 150;
     
     if (w.fluid > 0.01) {
-      size = lerp(8, 24, w.fluid); // Fluidで巨大化
+      size = lerp(CONFIG.visuals.nodeBaseSize, CONFIG.visuals.nodeFluidMaxSize, w.fluid); // Fluidで巨大化
       alpha = lerp(150, 80, w.fluid); // 透明度を下げて重ねる
     }
     
