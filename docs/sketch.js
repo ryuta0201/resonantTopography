@@ -40,12 +40,15 @@ const CONFIG = {
   colors: {
     base: [100, 200, 255], // R, G, B
   },
+
+  // Visual sizes (tweakable, will be scaled for mobile)
+  visuals: {
+    nodeBaseSize: 8,
+    nodeFluidMaxSize: 24
+  },
+
   transitionSpeed: 0.02    // 状態遷移の滑らかさ
 };
-
-// Visual sizes (tweakable, will be scaled for mobile)
-CONFIG.visuals.nodeBaseSize = 8;        // 通常のノードサイズ
-CONFIG.visuals.nodeFluidMaxSize = 24;  // Fluid時の最大サイズ
 
 const IS_MOBILE =
   /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
@@ -78,21 +81,21 @@ function setup() {
     CONFIG.visuals.nodeFluidMaxSize *= 1.8;
 
     // Boost physics/velocity (1.5〜2倍の範囲; using 1.8 as a balanced default)
-    const scale = 1.8;
-    CONFIG.fog.maxSpeed *= scale;
-    CONFIG.fog.noiseStrength *= scale;
+    const mobileScale = 1.8;
+    CONFIG.fog.maxSpeed *= mobileScale;
+    CONFIG.fog.noiseStrength *= mobileScale;
 
-    CONFIG.net.attractForce *= scale;
-    CONFIG.net.repelForce *= scale;
-    CONFIG.net.repelRadius *= scale;
+    CONFIG.net.attractForce *= mobileScale;
+    CONFIG.net.repelForce *= mobileScale;
+    CONFIG.net.repelRadius *= mobileScale;
 
-    CONFIG.fluid.maxSpeed *= scale;
-    CONFIG.fluid.centerGravity *= scale;
-    CONFIG.fluid.vortexStrength *= scale;
-    CONFIG.fluid.flowNoise *= scale;
+    CONFIG.fluid.maxSpeed *= mobileScale;
+    CONFIG.fluid.centerGravity *= mobileScale;
+    CONFIG.fluid.vortexStrength *= mobileScale;
+    CONFIG.fluid.flowNoise *= mobileScale;
 
     // Make initial velocities a bit stronger on mobile
-    INITIAL_VEL_SCALE = scale;
+    INITIAL_VEL_SCALE = mobileScale;
   } else {
     INITIAL_VEL_SCALE = 1.0;
   }
