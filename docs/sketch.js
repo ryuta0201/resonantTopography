@@ -22,9 +22,9 @@ const CONFIG = {
   net: {
     connectionDist: 100,   // 線をつなぐ距離
     attractForce: 0.008,   // 引き合う力 (構造化)
-    repelForce: 0.15,      // 反発する力 (島化・潰れ防止)
+    repelForce: 0.80,      // 反発する力 (島化・潰れ防止)
     repelRadius: 40,       // 反発が発生する距離
-    drag: 0.90             // 減衰 (構造を安定させる)
+    drag: 0.80             // 減衰 (構造を安定させる)
   },
 
   // Physics: FLUID (Cenote)
@@ -75,9 +75,10 @@ function setup() {
     console.log("⚠️ Mobile detected — applying mobile config");
     // Reduce node count for performance on mobile
     CONFIG.nodeCount = 50;
+    CONFIG.gridCellSize = 200; // Smaller grid cells for mobile
 
     // Increase visible particle sizes for touch targets
-    CONFIG.visuals.nodeBaseSize *= 1.8;
+    CONFIG.visuals.nodeBaseSize *= 3;
     CONFIG.visuals.nodeFluidMaxSize *= 1.8;
 
     // Boost physics/velocity (1.5〜2倍の範囲; using 1.8 as a balanced default)
@@ -86,8 +87,9 @@ function setup() {
     CONFIG.fog.noiseStrength *= mobileScale;
 
     CONFIG.net.attractForce *= mobileScale;
-    CONFIG.net.repelForce *= mobileScale;
+    CONFIG.net.repelForce *= mobileScale * 10;
     CONFIG.net.repelRadius *= mobileScale;
+    CONFIG.net.connectionDist *= mobileScale * 2.5;
 
     CONFIG.fluid.maxSpeed *= mobileScale;
     CONFIG.fluid.centerGravity *= mobileScale;
