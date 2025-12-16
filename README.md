@@ -12,6 +12,23 @@ https://github.com/user-attachments/assets/e398e90d-dac7-46da-afb2-95bb6680f825
 
 ## Conceptual Model
 
+~~~mermaid
+graph TD
+    Fog["Fog<br/>Diffuse Presence<br/>Uncertainty"]
+    Net["Net<br/>Relational Structure<br/>Stability"]
+    Fluid["Fluid (Cenote)<br/>Dissolution & Flow"]
+
+    Fog -- "exploration / sampling" --> Net
+    Net -- "over-stabilization" --> Fluid
+    Fluid -- "re-emergence" --> Fog
+
+    subgraph Continuous_Transition
+        Fog
+        Net
+        Fluid
+    end
+~~~
+
 **Resonant Topography** is a visual and computational model of *personal exploration*
 inspired by Bayesian optimization, embodied cognition, and relational dynamics.
 
@@ -79,6 +96,15 @@ It is a **necessary forgetting** that allows new structures to emerge.
 ---
 
 ### Continuous Transition (No Discrete Switching)
+
+~~~mermaid
+graph LR
+    T0["t = 0<br/>Fog = 1.0"]
+    T1["t = 1<br/>Net = 1.0"]
+    T2["t = 2<br/>Fluid = 1.0"]
+
+    T0 --> T1 --> T2
+~~~
 
 A key principle of this model is that **phases are not toggled**, but *blended*.
 
