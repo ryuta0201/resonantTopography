@@ -3,6 +3,8 @@
 This project visualizes a personal exploration algorithm inspired by
 Bayesian optimization, spiral search, and cenote-like convergence.
 
+![Demo](assets/demo.mp4)
+
 ## Core Concepts
 - Fog: diffuse sampling / uncertainty
 - Net: structured relational stability
